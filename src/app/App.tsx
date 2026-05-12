@@ -1,4 +1,4 @@
- import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   Search,
   ChevronDown,
@@ -3009,10 +3009,10 @@ function FinanceView() {
                 height: 40,
                 fontSize: 13,
                 fontWeight: tab === t.key ? 600 : 400,
-                color: tab === t.key ? "#4F46E5" : "#71717A",
+                color: tab === t.key ? "#0A0A0A" : "#71717A",
                 backgroundColor: "transparent",
                 border: "none",
-                borderBottom: tab === t.key ? "2px solid #4F46E5" : "2px solid transparent",
+                borderBottom: tab === t.key ? "2px solid #0A0A0A" : "2px solid transparent",
                 cursor: "pointer",
                 marginBottom: -1,
                 gap: 6,
@@ -3021,12 +3021,10 @@ function FinanceView() {
               {t.label}
               <span
                 style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "1px 6px",
-                  borderRadius: 10,
-                  backgroundColor: tab === t.key ? "#4F46E5" : "#F3F3F3",
-                  color: tab === t.key ? "#FFFFFF" : "#71717A",
+                  fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                  fontSize: 12,
+                  fontWeight: 400,
+                  color: tab === t.key ? "#3F3F46" : "#A1A1AA",
                 }}
               >
                 {t.count}
@@ -3036,17 +3034,18 @@ function FinanceView() {
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div
-        className="flex items-center justify-between mb-4"
-        style={{
-          padding: selectedCount > 0 ? "8px 8px 8px 16px" : "12px 16px",
-          backgroundColor: selectedCount > 0 ? "#0A0A0A" : "#FAFAFA",
-          borderRadius: 12,
-          border: "1px solid #EDEDED",
-          transition: "background-color 150ms ease",
-        }}
-      >
+      {/* Toolbar + Tabela — jeden kontener */}
+      <div style={{ borderRadius: 12, border: "1px solid #EDEDED", overflow: "hidden" }}>
+        {/* Toolbar */}
+        <div
+          className="flex items-center justify-between"
+          style={{
+            padding: selectedCount > 0 ? "8px 8px 8px 16px" : "12px 16px",
+            backgroundColor: selectedCount > 0 ? "#0A0A0A" : "#FFFFFF",
+            borderBottom: "1px solid #EDEDED",
+            transition: "background-color 150ms ease",
+          }}
+        >
         {selectedCount > 0 && tab !== "history" ? (
           <>
             <div className="flex items-center gap-3">
@@ -3121,25 +3120,24 @@ function FinanceView() {
         )}
       </div>
 
-      {/* Tabela */}
-      {activeRows.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center" style={{ padding: "80px 24px" }}>
-          <div className="flex items-center justify-center mb-4" style={{ width: 72, height: 72, borderRadius: "50%", backgroundColor: "#F3F4F6", color: "#A1A1AA" }}>
-            {tab === "refunds" ? <RotateCcw size={32} strokeWidth={1.5} /> : <Inbox size={32} strokeWidth={1.5} />}
+        {/* Tabela */}
+        {activeRows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center" style={{ padding: "80px 24px" }}>
+            <div className="flex items-center justify-center mb-4" style={{ width: 72, height: 72, borderRadius: "50%", backgroundColor: "#F3F4F6", color: "#A1A1AA" }}>
+              {tab === "refunds" ? <RotateCcw size={32} strokeWidth={1.5} /> : <Inbox size={32} strokeWidth={1.5} />}
+            </div>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: "#0A0A0A", margin: 0 }}>
+              {tab === "pending" ? "Brak zamówień do rozliczenia" : tab === "refunds" ? "Brak zwrotów do obsłużenia" : "Brak historii raportów"}
+            </h3>
+            <p style={{ fontSize: 14, color: "#71717A", marginTop: 6, maxWidth: 380 }}>
+              {tab === "pending"
+                ? "Zamówienia pojawią się tutaj gdy zostaną zrealizowane i opłacone."
+                : tab === "refunds"
+                  ? "Zwroty pojawią się tutaj gdy opłacone zamówienia zostaną wycofane."
+                  : "Wygenerowane raporty pojawią się tutaj."}
+            </p>
           </div>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: "#0A0A0A", margin: 0 }}>
-            {tab === "pending" ? "Brak zamówień do rozliczenia" : tab === "refunds" ? "Brak zwrotów do obsłużenia" : "Brak historii raportów"}
-          </h3>
-          <p style={{ fontSize: 14, color: "#71717A", marginTop: 6, maxWidth: 380 }}>
-            {tab === "pending"
-              ? "Zamówienia pojawią się tutaj gdy zostaną zrealizowane i opłacone."
-              : tab === "refunds"
-                ? "Zwroty pojawią się tutaj gdy opłacone zamówienia zostaną wycofane."
-                : "Wygenerowane raporty pojawią się tutaj."}
-          </p>
-        </div>
-      ) : (
-        <div style={{ borderRadius: 12, border: "1px solid #EDEDED" }}>
+        ) : (
           <table className="w-full" style={{ borderCollapse: "collapse", tableLayout: "auto" }}>
             <colgroup>
               {tab !== "history" && <col style={{ width: 40 }} />}
@@ -3280,8 +3278,8 @@ function FinanceView() {
               })}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Modal raportu */}
       {reportModal && (
