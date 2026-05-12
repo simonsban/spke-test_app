@@ -2963,10 +2963,10 @@ function FinanceView() {
   const thStyle = (align: "left" | "right" | "center" = "left"): React.CSSProperties => ({
     padding: "10px 16px",
     textAlign: align,
-    fontSize: 11,
-    fontWeight: 500,
+    fontSize: 12,
+    fontWeight: 600,
     textTransform: "uppercase",
-    letterSpacing: "0.06em",
+    letterSpacing: 0.4,
     color: "#71717A",
     borderBottom: "1px solid #EDEDED",
     whiteSpace: "nowrap",
