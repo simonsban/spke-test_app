@@ -1,0 +1,419 @@
+:root {
+  --base\/base-white: #FCFCFC;
+  --base\/base-black: #090A0B;
+  --primary\/primary: #009FF5;
+  --secondary\/secondary: #AAB9C5;
+  --success\/success: #A4F4E7;
+  --warning\/warning: #F4C790;
+  --error\/error: #E4626F;
+  --primary\/primary100: #D9F1FD;
+  --primary\/primary200: #A9DCF7;
+  --primary\/primary300: #7ECEF8;
+  --primary\/primary400: #53BDF5;
+  --primary\/primary500: #1AA6F1;
+  --primary\/primary600: #0083C9;
+  --primary\/primary700: #006296;
+  --primary\/primary800: #013958;
+  --primary\/primary900: #012436;
+  --primary\/primary1000: #001926;
+  --secondary\/secondary100: #E7EBEF;
+  --secondary\/secondary200: #DAE1E7;
+  --secondary\/secondary300: #CED7DE;
+  --secondary\/secondary400: #C2CDD6;
+  --secondary\/secondary500: #B6C3CD;
+  --secondary\/secondary600: #92A5B5;
+  --secondary\/secondary700: #7991A4;
+  --secondary\/secondary800: #637D92;
+  --secondary\/secondary900: #4A5E6D;
+  --secondary\/secondary1000: #323F49;
+  --neutrals\/base-white: #FCFCFC;
+  --neutrals\/neutrals100: #E8EBED;
+  --neutrals\/neutrals200: #D2D6DB;
+  --neutrals\/neutrals300: #BBC2C9;
+  --neutrals\/neutrals400: #A4ADB6;
+  --neutrals\/neutrals500: #828F9B;
+  --neutrals\/neutrals600: #64707D;
+  --neutrals\/neutrals700: #40474F;
+  --neutrals\/neutrals800: #2D3339;
+  --neutrals\/neutrals900: #2B2829;
+  --neutrals\/neutrals1000: #121417;
+  --neutrals\/base-black: #090A0B;
+  --success\/success100: #A4F4E7;
+  --success\/success200: #15B097;
+  --success\/success300: #0B7B69;
+  --warning\/warning100: #F4C790;
+  --warning\/warning200: #EDA145;
+  --warning\/warning300: #CC7914;
+  --error\/error100: #E4626F;
+  --error\/error200: #C03744;
+  --error\/error300: #8C1823;
+  --spacing\/base: 16;
+  --spacing\/xxs: 2;
+  --spacing\/xs: 4;
+  --spacing\/s: 6;
+  --spacing\/sm: 10;
+  --spacing\/m: 14;
+  --spacing\/ml: 20;
+  --spacing\/l: 28;
+  --spacing\/xl: 40;
+  --radius\/sharp: 0;
+  --radius\/xxs: 2;
+  --radius\/xs: 2;
+  --radius\/s: 4;
+  --radius\/sm: 6;
+  --radius\/m: 10;
+  --radius\/ml: 16;
+  --radius\/lg: 24;
+  --radius\/xl: 36;
+  --radius\/round: 999;
+  --color: #2434B3;
+  --opacity\/100: 100;
+  --stroke-weight\/0_11: 0.10982769727706909;
+  --color\/blue\/40: #0026CA;
+  --stroke-weight\/1_04: 1.0416666269302368;
+  --color\/blue\/42: #2434B3;
+  --stroke-weight\/1_14: 1.1363636255264282;
+  --color\/white\/solid: #FFF;
+  --stroke-weight\/1_11: 1.111111044883728;
+  --color\/grey\/99: #FCFCFC;
+  --stroke-weight\/0_02: 0.0223214291036129;
+  --stroke-weight\/1: 1;
+  --font-size\/10: 10;
+  --font-weight\/500: 500;
+  --line-height\/15: 15;
+  --color\/blue\/56: #4254DD;
+  --font-weight\/700: 700;
+  --line-height\/12: 12;
+  --width\/200: 200;
+  --stroke-weight\/2: 2;
+  --color\/grey\/95: #F3F3F3;
+  --height\/85: 85;
+  --height\/65: 65;
+  --height\/165: 165;
+  --color\/blue\/42-40\%: #2434B366;
+  --color\/black\/-0\%: #0000;
+  --height\/1200: 1200;
+  --item-spacing\/485_92: 485.9200134277344;
+  --item-spacing\/s\+: 24;
+  --color\/green\/14: #084303;
+  --color\/azure\/15: #212529;
+  --font-size\/28: 28;
+  --line-height\/35: 35;
+  --height\/50: 50;
+  --color\/grey\/20: #322F35;
+  --font-size\/14: 14;
+  --item-spacing\/0: 1.1368683772161603e-13;
+  --item-spacing\/s: 16;
+  --width\/27: 27;
+  --stroke-weight\/3: 3;
+  --stroke-weight\/0_01: 0.009765625;
+  --width\/265: 265;
+  --radius\/4: 4;
+  --color\/black\/solid: #000;
+  --item-spacing\/0_75: 0.75;
+  --width\/171: 170.99957275390625;
+  --color\/blue\/42-87\%: #2434B3DE;
+  --font-size\/10_5: 10.5;
+  --font-weight\/400: 400;
+  --line-height\/21: 21;
+  --color\/grey\/82: #D0D0D0;
+  --height\/335: 335;
+  --height\/295: 295;
+  --item-spacing\/40: 40;
+  --width\/850: 850;
+  --item-spacing\/20: 20;
+  --font-size\/18: 18;
+  --item-spacing\/15: 15;
+  --font-size\/12: 12;
+  --color\/spring-green\/50: #38C78B;
+  --color\/red\/67: #F55;
+  --color\/orange\/48: #BC8B3B;
+  --color\/grey\/44-10\%: #7070701A;
+  --width\/190: 190;
+  --color\/black\/-87\%: #000000DE;
+  --width\/230: 230;
+  --color\/blue\/26: #3D3C4A;
+  --width\/250: 250;
+  --color\/grey\/60: #97999C;
+  --line-height\/27: 27;
+  --line-height\/18: 18;
+  --item-spacing\/-xxxs: -2;
+  --width\/700_09: 700.0900268554688;
+  --line-height\/20: 20;
+  --item-spacing\/55: 55;
+  --item-spacing\/30: 30;
+  --color\/grey\/16: #25292B;
+  --font-size\/16: 16;
+  --line-height\/23: 23;
+  --item-spacing\/35: 35;
+  --item-spacing\/5: 5;
+  --stroke-weight\/1_82: 1.8199998140335083;
+  --color\/grey\/46: #767676;
+  --color\/black\/-38\%: #00000061;
+  --color\/grey\/90: #E0E2EC;
+  --width\/90: 90;
+  --line-height\/14: 14;
+  --width\/36: 36;
+  --opacity\/40: 40;
+  --item-spacing\/10: 10;
+  --stroke-weight\/0_83: 0.8333333134651184;
+  --neutrals\/alabaster: #FCFCFC;  /* Alabaster */
+  --neutrals\/alto: #D0D0D0;  /* Alto */
+  --neutrals\/athens-gray: #E0E2EC;  /* Athens Gray */
+  --neutrals\/baltic-sea: #322F35;  /* Baltic Sea */
+  --neutrals\/boulder: #767676;  /* Boulder */
+  --neutrals\/concrete: #F3F3F3;  /* Concrete */
+  --neutrals\/dove-gray-10\%: #7070701A;  /* Dove Gray 10% */
+  --neutrals\/oslo-gray: #97999C;  /* Tylko dekoracyjny — nie jako tekst. Nie spełnia WCAG AA. */
+  --brand\/persian-blue: #2434B3;  /* Persian Blue */
+  --semantic\/warning: #F55;  /* Persimmon */
+  --brand\/royal-blue: #4254DD;  /* Royal Blue */
+  --semantic\/dark-green: #084303;  /* San Felix */
+  --neutrals\/shark: #212529;  /* Shark */
+  --neutrals\/tuna: #3D3C4A;  /* Tuna */
+  --semantic\/gold: #BC8B3B;  /* Tussock */
+  --brand\/vector-stroke: #0026CA;  /* Vector-stroke */
+  --semantic\/error: #EE0202;  /* Red / Error */
+  --semantic\/green-success: #5FD855;  /* Green / Success */
+  --semantic\/mint-success: #38C78B;  /* Mint / Success */
+  --brand\/blue-bright: #304FFE;  /* Blue / Bright */
+  --spacing\/2: 2;  /* Odstęp 2px — token spacingu */
+  --spacing\/4: 4;  /* Odstęp 4px — token spacingu */
+  --spacing\/8: 8;  /* Odstęp 8px — token spacingu */
+  --spacing\/12: 12;  /* Odstęp 12px — token spacingu */
+  --spacing\/16: 16;  /* Odstęp 16px — token spacingu */
+  --spacing\/24: 24;  /* Odstęp 24px — token spacingu */
+  --spacing\/32: 32;  /* Odstęp 32px — token spacingu */
+  --spacing\/48: 48;  /* Odstęp 48px — token spacingu */
+  --spacing\/64: 64;  /* Odstęp 64px — token spacingu */
+  --color\/brand\/primary: #0026CA;
+  --color\/brand\/primary-hover: #3034FF;
+  --color\/brand\/primary-dark: #2434B3;
+  --color\/text\/default: #25292B;
+  --color\/text\/secondary: #6B7280;
+  --color\/text\/disabled: #9B9D9F;
+  --color\/text\/inverse: #FFF;
+  --color\/text\/link: #0026CA;
+  --color\/background\/page: #FFF;
+  --color\/background\/surface: #FAFAFB;
+  --color\/background\/subtle: #F3F4F5;
+  --color\/border\/default: #D4D6D8;
+  --color\/border\/strong: #E5E7E9;
+  --color\/border\/focus: #0026CA;
+  --color\/semantic\/error: #E4626F;
+  --color\/semantic\/error-bg: #FDF2F3;
+  --color\/semantic\/success: #084303;
+  --color\/semantic\/success-bg: #F0FDF0;
+  --color\/semantic\/warning: #EEA42B;
+  --color\/semantic\/warning-bg: #FFFBEB;
+  --color\/semantic\/info: #4254DD;
+  --color\/semantic\/info-bg: #F2F4FF;
+  --spacing\/2-2: 2;
+  --spacing\/4-2: 4;
+  --spacing\/6: 6;
+  --spacing\/8-2: 8;
+  --spacing\/10: 10;
+  --spacing\/12-2: 12;
+  --spacing\/14: 14;
+  --spacing\/16-2: 16;
+  --spacing\/20: 20;
+  --spacing\/24-2: 24;
+  --spacing\/32-2: 32;
+  --spacing\/40: 40;
+  --spacing\/48-2: 48;
+  --spacing\/64-2: 64;
+  --radius\/none: 0;
+  --radius\/small: 4;
+  --radius\/base: 6;
+  --radius\/medium: 8;
+  --radius\/large: 12;
+  --radius\/full: 9999;
+  --font\/size\/xs: 10;
+  --font\/size\/sm: 11;
+  --font\/size\/base: 13;
+  --font\/size\/md: 16;
+  --font\/size\/lg: 20;
+  --font\/size\/xl: 24;
+  --font\/size\/2xl: 32;
+}
+
+.roboto-caption-regular {
+  font-family: "Roboto";
+  font-style: "Regular";
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-caption-medium {
+  font-family: "Roboto";
+  font-style: "Medium";
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-caption-bold {
+  font-family: "Roboto";
+  font-style: "Bold";
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-caption-black {
+  font-family: "Roboto";
+  font-style: "Black";
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-body-s-regular {
+  font-family: "Roboto";
+  font-style: "Regular";
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-body-s-medium {
+  font-family: "Roboto";
+  font-style: "Medium";
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-body-regular {
+  font-family: "Roboto";
+  font-style: "Regular";
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-body-medium {
+  font-family: "Roboto";
+  font-style: "Medium";
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-body-bold {
+  font-family: "Roboto";
+  font-style: "Bold";
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-body-l-regular {
+  font-family: "Roboto";
+  font-style: "Regular";
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-body-l-medium {
+  font-family: "Roboto";
+  font-style: "Medium";
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.roboto-heading-bold {
+  font-family: "Roboto";
+  font-style: "Bold";
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.inter-caption-regular {
+  font-family: "Inter";
+  font-style: "Regular";
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.inter-caption-medium {
+  font-family: "Inter";
+  font-style: "Medium";
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.inter-body-s-regular {
+  font-family: "Inter";
+  font-style: "Regular";
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.inter-body-s-medium {
+  font-family: "Inter";
+  font-style: "Medium";
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.inter-body-s-bold {
+  font-family: "Inter";
+  font-style: "Bold";
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.inter-body-regular {
+  font-family: "Inter";
+  font-style: "Regular";
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.inter-body-medium {
+  font-family: "Inter";
+  font-style: "Medium";
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
+.open-sans-body-semibold {
+  font-family: "Open Sans";
+  font-style: "SemiBold";
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.399999976158142;
+  letter-spacing: 0px;
+}
+
