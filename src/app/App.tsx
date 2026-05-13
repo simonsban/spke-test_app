@@ -2053,15 +2053,6 @@ function OrderDrawer({
       state: "done",
     },
     {
-      label: "Pobrane do produkcji",
-      time: order.takenAt,
-      operator: order.takenBy,
-      state:
-        order.status === "Nowe"
-          ? "future"
-          : "done",
-    },
-    {
       label: "W produkcji",
       time: undefined,
       state:
@@ -2362,9 +2353,6 @@ function OrderDrawer({
           <DrawerSection title="Historia operacji" last>
             <div className="flex flex-col gap-2">
               <AuditEntry time={order.date} action="Wpłynęło z POKE" actor="system" />
-              {order.takenAt && (
-                <AuditEntry time={order.takenAt} action="Pobrane do produkcji" actor={order.takenBy ?? "—"} />
-              )}
               {order.doneAt && (
                 <AuditEntry time={order.doneAt} action="Oznaczono jako zrobione" actor={order.doneBy ?? "—"} />
               )}
