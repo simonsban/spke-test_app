@@ -2892,6 +2892,8 @@ function FinanceView() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
   const [reportModal, setReportModal] = useState<null | { mode: "selected" | "all" }>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PER_PAGE = 5;
 
   const pendingRows = useMemo(() =>
     orders.filter((o) => {
@@ -2919,6 +2921,8 @@ function FinanceView() {
     orders.filter((o) => !!o.reportId), [orders]);
 
   const activeRows = tab === "pending" ? pendingRows : tab === "refunds" ? refundRows : historyRows;
+  const totalPages = Math.ceil(activeRows.length / PER_PAGE);
+  const pagedRows = activeRows.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
   const selectableRows = activeRows.filter((r) => !r.reportId);
   const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selected.has(r.id));
   const selectedCount = selected.size;
@@ -3003,7 +3007,7 @@ function FinanceView() {
           ).map((t) => (
             <button
               key={t.key}
-              onClick={() => { setTab(t.key); setSelected(new Set()); }}
+              onClick={() => { setTab(t.key); setSelected(new Set()); setCurrentPage(1); }}
               className="inline-flex items-center gap-2 px-4"
               style={{
                 height: 40,
@@ -3101,7 +3105,7 @@ function FinanceView() {
                 <Search size={14} color="#A1A1AA" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
                 <input
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                   placeholder="Szukaj po ID, kliencie lub ID płatności..."
                   className="w-full outline-none"
                   style={{
@@ -3170,7 +3174,7 @@ function FinanceView() {
               </tr>
             </thead>
             <tbody>
-              {activeRows.map((row) => {
+              {pagedRows.map((row) => {
                 const isSelected = selected.has(row.id);
                 const isReported = !!row.reportId;
                 return (
@@ -3278,6 +3282,70 @@ function FinanceView() {
               })}
             </tbody>
           </table>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div
+            className="flex items-center justify-between"
+            style={{
+              padding: "12px 16px",
+              borderTop: "1px solid #EDEDED",
+              backgroundColor: "#FAFAFA",
+              borderBottomLeftRadius: 8,
+              borderBottomRightRadius: 8,
+            }}
+          >
+            <span style={{ fontSize: 13, color: "#71717A" }}>
+              Strona {currentPage} z {totalPages} · {activeRows.length} wyników
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{
+                  height: 32, padding: "0 10px", borderRadius: 6,
+                  border: "1px solid #EDEDED", backgroundColor: "#FFFFFF",
+                  fontSize: 13, color: currentPage === 1 ? "#A1A1AA" : "#0A0A0A",
+                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                }}
+              >
+                <ChevronLeft size={14} />
+                Poprzednia
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  style={{
+                    width: 32, height: 32, borderRadius: 6,
+                    border: "1px solid " + (page === currentPage ? "#4F46E5" : "#EDEDED"),
+                    backgroundColor: page === currentPage ? "#4F46E5" : "#FFFFFF",
+                    fontSize: 13, fontWeight: page === currentPage ? 600 : 400,
+                    color: page === currentPage ? "#FFFFFF" : "#0A0A0A",
+                    cursor: "pointer",
+                  }}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                style={{
+                  height: 32, padding: "0 10px", borderRadius: 6,
+                  border: "1px solid #EDEDED", backgroundColor: "#FFFFFF",
+                  fontSize: 13, color: currentPage === totalPages ? "#A1A1AA" : "#0A0A0A",
+                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                }}
+              >
+                Następna
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
