@@ -3284,66 +3284,17 @@ function FinanceView() {
           </table>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
-          <div
-            className="flex items-center justify-between"
-            style={{
-              padding: "12px 16px",
-              borderTop: "1px solid #EDEDED",
-              backgroundColor: "#FAFAFA",
-              borderBottomLeftRadius: 8,
-              borderBottomRightRadius: 8,
-            }}
-          >
+          <div className="flex items-center justify-between" style={{ padding: "12px 16px", borderTop: "1px solid #EDEDED" }}>
             <span style={{ fontSize: 13, color: "#71717A" }}>
-              Strona {currentPage} z {totalPages} · {activeRows.length} wyników
+              Wyświetlono {(currentPage - 1) * PER_PAGE + 1}–{Math.min(currentPage * PER_PAGE, activeRows.length)} z {activeRows.length}
             </span>
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                style={{
-                  height: 32, padding: "0 10px", borderRadius: 6,
-                  border: "1px solid #EDEDED", backgroundColor: "#FFFFFF",
-                  fontSize: 13, color: currentPage === 1 ? "#A1A1AA" : "#0A0A0A",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                }}
-              >
-                <ChevronLeft size={14} />
-                Poprzednia
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  style={{
-                    width: 32, height: 32, borderRadius: 6,
-                    border: "1px solid " + (page === currentPage ? "#4F46E5" : "#EDEDED"),
-                    backgroundColor: page === currentPage ? "#4F46E5" : "#FFFFFF",
-                    fontSize: 13, fontWeight: page === currentPage ? 600 : 400,
-                    color: page === currentPage ? "#FFFFFF" : "#0A0A0A",
-                    cursor: "pointer",
-                  }}
-                >
-                  {page}
-                </button>
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #EDEDED", backgroundColor: "#FFFFFF", color: currentPage === 1 ? "#D4D4D8" : "#0A0A0A", cursor: currentPage === 1 ? "not-allowed" : "pointer", fontSize: 14 }}>‹</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button key={p} onClick={() => setCurrentPage(p)} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #EDEDED", backgroundColor: p === currentPage ? "#0A0A0A" : "#FFFFFF", color: p === currentPage ? "#FFFFFF" : "#0A0A0A", cursor: "pointer", fontSize: 13, fontWeight: p === currentPage ? 600 : 400 }}>{p}</button>
               ))}
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                style={{
-                  height: 32, padding: "0 10px", borderRadius: 6,
-                  border: "1px solid #EDEDED", backgroundColor: "#FFFFFF",
-                  fontSize: 13, color: currentPage === totalPages ? "#A1A1AA" : "#0A0A0A",
-                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                }}
-              >
-                Następna
-                <ChevronRight size={14} />
-              </button>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #EDEDED", backgroundColor: "#FFFFFF", color: currentPage === totalPages ? "#D4D4D8" : "#0A0A0A", cursor: currentPage === totalPages ? "not-allowed" : "pointer", fontSize: 14 }}>›</button>
             </div>
           </div>
         )}
