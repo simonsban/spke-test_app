@@ -988,15 +988,18 @@ function PageBtn({
   icon,
   active,
   disabled,
+  onClick,
 }: {
   label?: string;
   icon?: React.ReactNode;
   active?: boolean;
   disabled?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
       disabled={disabled}
+      onClick={onClick}
       className="flex items-center justify-center"
       style={{
         minWidth: 32,
@@ -3285,16 +3288,25 @@ function FinanceView() {
         )}
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between" style={{ padding: "12px 16px", borderTop: "1px solid #EDEDED" }}>
-            <span style={{ fontSize: 13, color: "#71717A" }}>
+          <div
+            className="flex items-center justify-between px-4"
+            style={{
+              height: 56,
+              borderTop: "1px solid #EDEDED",
+              backgroundColor: "#FFFFFF",
+              borderBottomLeftRadius: 6,
+              borderBottomRightRadius: 6,
+            }}
+          >
+            <div style={{ fontSize: 13, color: "#71717A" }}>
               Wyświetlono {(currentPage - 1) * PER_PAGE + 1}–{Math.min(currentPage * PER_PAGE, activeRows.length)} z {activeRows.length}
-            </span>
+            </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #EDEDED", backgroundColor: "#FFFFFF", color: currentPage === 1 ? "#D4D4D8" : "#0A0A0A", cursor: currentPage === 1 ? "not-allowed" : "pointer", fontSize: 14 }}>‹</button>
+              <PageBtn icon={<ChevronLeft size={14} />} disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} />
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button key={p} onClick={() => setCurrentPage(p)} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #EDEDED", backgroundColor: p === currentPage ? "#0A0A0A" : "#FFFFFF", color: p === currentPage ? "#FFFFFF" : "#0A0A0A", cursor: "pointer", fontSize: 13, fontWeight: p === currentPage ? 600 : 400 }}>{p}</button>
+                <PageBtn key={p} label={String(p)} active={p === currentPage} onClick={() => setCurrentPage(p)} />
               ))}
-              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #EDEDED", backgroundColor: "#FFFFFF", color: currentPage === totalPages ? "#D4D4D8" : "#0A0A0A", cursor: currentPage === totalPages ? "not-allowed" : "pointer", fontSize: 14 }}>›</button>
+              <PageBtn icon={<ChevronRight size={14} />} disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} />
             </div>
           </div>
         )}
