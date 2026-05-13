@@ -2981,7 +2981,7 @@ function FinanceView() {
   });
 
   return (
-    <main className="px-8 py-8 mx-auto" style={{ maxWidth: 1400 }}>
+    <main className="px-8 py-8 mx-auto" style={{ maxWidth: 1400, paddingBottom: 48 }}>
       <div className="mb-6">
         <h1 style={{ fontSize: 28, fontWeight: 600, color: "#0A0A0A", margin: 0, lineHeight: 1.2 }}>
           Biuro Finansów
