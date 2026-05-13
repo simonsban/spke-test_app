@@ -2896,7 +2896,9 @@ function FinanceView() {
   const [showHistory, setShowHistory] = useState(false);
   const [reportModal, setReportModal] = useState<null | { mode: "selected" | "all" }>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const PER_PAGE = 5;
+  const [perPage, setPerPage] = useState(5);
+  const [perPageOpen, setPerPageOpen] = useState(false);
+  const PER_PAGE = perPage;
 
   const pendingRows = useMemo(() =>
     orders.filter((o) => {
@@ -3301,12 +3303,42 @@ function FinanceView() {
             <div style={{ fontSize: 13, color: "#71717A" }}>
               Wyświetlono {(currentPage - 1) * PER_PAGE + 1}–{Math.min(currentPage * PER_PAGE, activeRows.length)} z {activeRows.length}
             </div>
-            <div className="flex items-center gap-1">
-              <PageBtn icon={<ChevronLeft size={14} />} disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} />
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <PageBtn key={p} label={String(p)} active={p === currentPage} onClick={() => setCurrentPage(p)} />
-              ))}
-              <PageBtn icon={<ChevronRight size={14} />} disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} />
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <button
+                  onClick={() => setPerPageOpen((v) => !v)}
+                  className="inline-flex items-center gap-2 px-3"
+                  style={{ height: 32, borderRadius: 4, border: "1px solid #D1D5DB", backgroundColor: "#FFFFFF", fontSize: 13, color: "#3F3F46" }}
+                >
+                  <span style={{ color: "#71717A" }}>Wierszy na stronę:</span>
+                  <span style={{ fontWeight: 500 }}>{perPage}</span>
+                  <ChevronDown size={14} color="#71717A" />
+                </button>
+                {perPageOpen && (
+                  <div
+                    className="absolute right-0 bottom-full mb-1 z-20"
+                    style={{ minWidth: 80, backgroundColor: "#FFFFFF", border: "1px solid #EDEDED", borderRadius: 6, boxShadow: "0 8px 16px rgba(16,24,40,0.08)", padding: 4 }}
+                  >
+                    {[5, 10, 25].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => { setPerPage(n); setCurrentPage(1); setPerPageOpen(false); }}
+                        className="w-full text-left px-3 py-1.5"
+                        style={{ fontSize: 13, borderRadius: 4, color: "#0A0A0A", backgroundColor: perPage === n ? "#EEF2FF" : "transparent" }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <PageBtn icon={<ChevronLeft size={14} />} disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} />
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <PageBtn key={p} label={String(p)} active={p === currentPage} onClick={() => setCurrentPage(p)} />
+                ))}
+                <PageBtn icon={<ChevronRight size={14} />} disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} />
+              </div>
             </div>
           </div>
         )}
