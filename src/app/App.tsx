@@ -1834,7 +1834,7 @@ function OrdersView() {
                     <SortableTh label="Typ karty" />
                     <SortableTh label="Szt." align="right" />
                     <SortableTh label="Status" />
-                    {tab === "wip" && <th style={thStyle("left")}>Nr zlecenia SAP</th>}
+                    {tab === "wip" && <th style={{ ...thStyle("left"), whiteSpace: "nowrap" }}>Nr zlecenia SAP</th>}
                     <th style={thStyle("right")}>Akcje</th>
                   </tr>
                 </thead>
@@ -3166,7 +3166,7 @@ function RowMenu({ open, onToggle, onClose, items }: { open: boolean; onToggle: 
                 role="menuitem"
                 onClick={() => { onClose(); it.onClick(); }}
                 className="w-full flex items-center gap-2.5"
-                style={{ padding: "8px 10px", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: it.danger ? "#B91C1C" : "#0A0A0A", fontSize: 13.5 }}
+                style={{ padding: "8px 10px", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: it.danger ? "#B91C1C" : "#0A0A0A", fontSize: 13.5, fontWeight: 400, textTransform: "none", letterSpacing: 0, whiteSpace: "nowrap" }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F4F4F5")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
               >
