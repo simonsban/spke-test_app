@@ -1494,10 +1494,12 @@ function OrdersView() {
   const selectedNoSap = selectedCount - selectedWithSap;
 
   const toggleRow = (id: string) => {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelected(next);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const toggleAll = () => {
@@ -1614,11 +1616,10 @@ function OrdersView() {
                 <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>·</span>
                 <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
                   łącznie{" "}
-                  {Array.from(selected).reduce((sum, id) => {
+                  {kartPl(Array.from(selected).reduce((sum, id) => {
                     const row = orders.find((o) => o.id === id);
                     return sum + (row ? row.cards.reduce((s, c) => s + c.qty, 0) : 0);
-                  }, 0)}{" "}
-                  kart
+                  }, 0))}
                 </span>
                 {tab === "wip" && selectedNoSap > 0 && (
                   <span
@@ -1626,7 +1627,7 @@ function OrdersView() {
                     style={{ padding: "4px 8px", borderRadius: 6, backgroundColor: "rgba(245,158,11,0.16)", color: "#FCD34D", fontSize: 12.5 }}
                   >
                     <AlertTriangle size={14} color="#FBBF24" />
-                    {selectedNoSap} bez zlecenia SAP — zostaną pominięte przy Zrobione
+                    {selectedNoSap} bez zlecenia SAP — {selectedNoSap === 1 ? "zostanie pominięty" : "zostaną pominięte"} przy Zrobione
                   </span>
                 )}
               </div>
