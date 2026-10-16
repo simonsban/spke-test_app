@@ -23,6 +23,9 @@ import {
   AlertTriangle,
   CreditCard,
   RotateCcw,
+  Ellipsis,
+  Undo2,
+  Printer,
 } from "lucide-react";
 
 /* ======================== TYPES ======================== */
@@ -78,11 +81,58 @@ type OrderRow = {
   withdrawnBy?: string;
   withdrawalReason?: string;
   withdrawnFromStatus?: "Nowe" | "W produkcji";
+  revertedAt?: string;
+  revertReason?: string;
   // dane klienta — maskowane dla SPKE
   clientName?: string;       // "Anna Lewandowska" / "TransLog Sp. z o.o."
   clientMaskedId?: string;   // "78••••••231" (PESEL) lub "525-22-••-118" (NIP)
   clientIdType?: "PESEL" | "NIP";
 };
+
+// Numer zlecenia SAP (nadaje Planista) — bez numeru nie można oznaczyć „Zrobione”
+const SAP_ORDER_NO: Record<string, string> = {
+  "WN/2026/045654": "1000048213",
+  "WN/2026/045651": "1000048219",
+};
+
+// Pełny NIP (decyzja PM: NIP pokazujemy bez maskowania; PESEL nie jest wyświetlany)
+const NIP_FULL: Record<string, string> = {
+  "WN/2026/045686": "525-224-11-18",
+  "WN/2026/045684": "521-342-55-67",
+  "WN/2026/045682": "521-347-07-81",
+  "WN/2026/045680": "677-231-49-01",
+  "WN/2026/045679": "634-012-45-78",
+  "WN/2026/045654": "679-123-44-56",
+  "WN/2026/045652": "895-000-27-56",
+  "WN/2026/045650": "583-456-78-90",
+};
+
+// Adres wysyłki z wniosku — ZAŁOŻENIE: dostępny w danych wniosku (dziś przychodzi w Excelu)
+const SHIP_ADDRESS: Record<string, string> = {
+  "WN/2026/045687": "ul. Kwiatowa 5/2, 05-800 Pruszków",
+  "WN/2026/045686": "ul. Logistyczna 8, 05-090 Raszyn",
+  "WN/2026/045685": "ul. Polna 17, 26-600 Radom",
+  "WN/2026/045684": "ul. Okopowa 59, 01-043 Warszawa",
+  "WN/2026/045683": "ul. Ogrodowa 3/14, 90-001 Łódź",
+  "WN/2026/045682": "ul. Mińska 25, 03-808 Warszawa",
+  "WN/2026/045681": "ul. Leśna 2, 08-110 Siedlce",
+  "WN/2026/045680": "ul. Warsztatowa 4, 87-100 Toruń",
+  "WN/2026/045679": "ul. Transportowa 1, 62-080 Tarnowo Podgórne",
+  "WN/2026/045678": "ul. Słowików 9/1, 20-001 Lublin",
+  "WN/2026/045654": "ul. Przemysłowa 12, 30-701 Kraków",
+  "WN/2026/045653": "ul. Lipowa 4/7, 05-500 Piaseczno",
+  "WN/2026/045652": "ul. Fabryczna 21, 15-482 Białystok",
+  "WN/2026/045651": "ul. Słoneczna 9, 26-600 Radom",
+  "WN/2026/045650": "ul. Portowa 6, 81-337 Gdynia",
+};
+
+function plWnioski(n: number, nom: [string, string, string]): string {
+  // nom: [1, 2-4, 5+] np. ["wniosek", "wnioski", "wniosków"]
+  if (n === 1) return nom[0];
+  const d = n % 10, t = n % 100;
+  if (d >= 2 && d <= 4 && !(t >= 12 && t <= 14)) return nom[1];
+  return nom[2];
+}
 
 /* ======================== CARD TYPE CONFIG ======================== */
 
@@ -768,13 +818,11 @@ function ZamawiajacyCell({ orderer, rowId }: { orderer: OrdererType; rowId: stri
         <span style={{ fontSize: 13.5, fontWeight: 600, color: "#0A0A0A", whiteSpace: "nowrap" }}>
           {client?.clientName ?? (isFirma ? "Firma" : "Osoba fizyczna")}
         </span>
-        {client?.clientMaskedId && (
+        {client?.clientIdType === "NIP" && NIP_FULL[rowId] && (
           <div className="flex items-center gap-1" style={{ color: "#71717A", fontSize: 11.5 }}>
-            <span style={{ fontWeight: 500, letterSpacing: "0.04em" }}>
-              {client.clientIdType}
-            </span>
+            <span style={{ fontWeight: 500, letterSpacing: "0.04em" }}>NIP</span>
             <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}>
-              {client.clientMaskedId}
+              {NIP_FULL[rowId]}
             </span>
           </div>
         )}
@@ -798,7 +846,7 @@ function relativeTime(dateStr?: string): string {
   const diffH = Math.floor(diffMin / 60);
   if (diffH < 24)    return `${diffH} godz. temu`;
   const diffD = Math.floor(diffH / 24);
-  return `${diffD} dni temu`;
+  return diffD === 1 ? "1 dzień temu" : `${diffD} dni temu`;
 }
 
 function StatusBadge({ status }: { status: OrderStatus }) {
@@ -1265,6 +1313,98 @@ function OrdersView() {
   // Confirmation modals
   const [confirmPobierz, setConfirmPobierz] = useState<string | null>(null); // orderId
   const [confirmWycofaj, setConfirmWycofaj] = useState<string | null>(null); // orderId
+  const [redownloadId, setRedownloadId] = useState<string | null>(null);
+  const [revertId, setRevertId] = useState<string | null>(null);
+  const [printIds, setPrintIds] = useState<string[] | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  // Historia pobrań pliku JOB per wniosek (wnioski już w produkcji mają 1 pobranie)
+  const [jobLog, setJobLog] = useState<Record<string, { at: string; by: string }[]>>(() => {
+    const init: Record<string, { at: string; by: string }[]> = {};
+    for (const o of INITIAL_ORDERS) if (o.status === "W produkcji" && o.takenAt) init[o.id] = [{ at: o.takenAt, by: o.takenBy ?? "Jan Kowalski" }];
+    return init;
+  });
+
+  const logJob = (ids: string[], stamp: string) =>
+    setJobLog((prev) => {
+      const next = { ...prev };
+      for (const id of ids) next[id] = [...(next[id] ?? []), { at: stamp, by: "Jan Kowalski" }];
+      return next;
+    });
+
+  const showToast = (t: ToastState) => setToast({ ...t, key: Date.now() });
+
+  // Pobierz = plik JOB + przeniesienie do „W produkcji” + toast z „Cofnij” (10 s)
+  const pobierz = (ids: string[]) => {
+    const valid = ids.filter((id) => orders.find((o) => o.id === id)?.status === "Nowe");
+    if (valid.length === 0) return;
+    const stamp = nowStamp();
+    markProduction(valid);
+    logJob(valid, stamp);
+    downloadJobFile(valid, orders);
+    showToast({
+      message:
+        valid.length === 1
+          ? `Wniosek ${valid[0]} przeniesiono do W produkcji. Plik JOB został pobrany.`
+          : `${valid.length} ${plWnioski(valid.length, ["wniosek", "wnioski", "wniosków"])} przeniesiono do W produkcji. Pliki JOB zostały pobrane.`,
+      mono: valid.length === 1 ? valid[0] : undefined,
+      undoSeconds: 10,
+      onUndo: () => {
+        setOrders((prev) =>
+          prev.map((o) =>
+            valid.includes(o.id) && o.status === "W produkcji"
+              ? ({ ...o, status: "Nowe", takenAt: undefined, takenBy: undefined } as OrderRow)
+              : o,
+          ),
+        );
+        setJobLog((prev) => {
+          const next = { ...prev };
+          for (const id of valid) delete next[id];
+          return next;
+        });
+        setToast(null);
+      },
+    });
+  };
+
+  const doneWithSap = (ids: string[]) => {
+    const ok = ids.filter((id) => SAP_ORDER_NO[id]);
+    const skipped = ids.length - ok.length;
+    if (ok.length > 0) markDone(ok);
+    else setSelected(new Set());
+    if (ids.length === 1 && ok.length === 1) {
+      showToast({ message: `Wniosek ${ok[0]} oznaczono jako zrobione.`, mono: ok[0] });
+    } else if (ok.length === 0) {
+      showToast({ message: "Nie oznaczono żadnego wniosku — brak numeru zlecenia SAP.", tone: "warn" });
+    } else {
+      showToast({
+        message:
+          `${ok.length} ${plWnioski(ok.length, ["wniosek oznaczono", "wnioski oznaczono", "wniosków oznaczono"])} jako zrobione.` +
+          (skipped > 0 ? ` ${skipped} pominięto — brak numeru zlecenia SAP.` : ""),
+        tone: skipped > 0 ? "warn" : "ok",
+      });
+    }
+  };
+
+  const revertToNew = (id: string, reason: string) => {
+    const stamp = nowStamp();
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === id ? ({ ...o, status: "Nowe", takenAt: undefined, takenBy: undefined, revertedAt: stamp, revertReason: reason } as OrderRow) : o,
+      ),
+    );
+    setJobLog((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    showToast({ message: `Wniosek ${id} wrócił do zakładki Nowe. Poprzedni plik JOB jest nieaktualny.`, mono: id });
+  };
 
   const newOrders = useMemo(() => orders.filter((o) => o.status === "Nowe"), [orders]);
   const wipOrders = useMemo(() => orders.filter((o) => o.status === "W produkcji"), [orders]);
@@ -1288,7 +1428,11 @@ function OrdersView() {
     return base.filter((o) => {
       if (filterType !== "all" && !o.cards.some((c) => c.type === filterType)) return false;
       if (filterOrderer !== "all" && o.orderer !== filterOrderer) return false;
-      if (search && !o.id.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const hay = [o.id, CLIENT_DATA[o.id]?.clientName ?? "", NIP_FULL[o.id] ?? "", (NIP_FULL[o.id] ?? "").replace(/-/g, "")].join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
   }, [tab, orders, search, filterType, filterOrderer, showWithdrawn, withdrawnOrders]);
@@ -1346,6 +1490,8 @@ function OrdersView() {
   const allSelected = activeRows.length > 0 && activeRows.every((r) => selected.has(r.id));
   const someSelected = activeRows.some((r) => selected.has(r.id));
   const selectedCount = selected.size;
+  const selectedWithSap = Array.from(selected).filter((id) => SAP_ORDER_NO[id]).length;
+  const selectedNoSap = selectedCount - selectedWithSap;
 
   const toggleRow = (id: string) => {
     const next = new Set(selected);
@@ -1463,7 +1609,7 @@ function OrdersView() {
                   {selectedCount}
                 </div>
                 <span style={{ fontSize: 13.5, color: "#FFFFFF", fontWeight: 500 }}>
-                  {tab === "new" ? "wniosków" : "zamówień"} zaznaczonych
+                  {plWnioski(selectedCount, ["wniosek zaznaczony", "wnioski zaznaczone", "wniosków zaznaczonych"])}
                 </span>
                 <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>·</span>
                 <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
@@ -1474,6 +1620,15 @@ function OrdersView() {
                   }, 0)}{" "}
                   kart
                 </span>
+                {tab === "wip" && selectedNoSap > 0 && (
+                  <span
+                    className="inline-flex items-center gap-1.5"
+                    style={{ padding: "4px 8px", borderRadius: 6, backgroundColor: "rgba(245,158,11,0.16)", color: "#FCD34D", fontSize: 12.5 }}
+                  >
+                    <AlertTriangle size={14} color="#FBBF24" />
+                    {selectedNoSap} bez zlecenia SAP — zostaną pominięte przy Zrobione
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1507,29 +1662,55 @@ function OrdersView() {
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#4338CA")}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#4F46E5")}
-                    onClick={() => markProduction(Array.from(selected))}
+                    onClick={() => pobierz(Array.from(selected))}
                   >
-                    Przekaż do produkcji
+                    <Download size={15} />
+                    Pobierz do produkcji ({selectedCount})
                   </button>
                 )}
                 {tab === "wip" && (
-                  <button
-                    className="px-4 inline-flex items-center gap-2"
-                    style={{
-                      height: 32,
-                      borderRadius: 7,
-                      backgroundColor: "#4F46E5",
-                      color: "#FFFFFF",
-                      fontSize: 12.5,
-                      fontWeight: 500,
-                      border: "none",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#4338CA")}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#4F46E5")}
-                    onClick={() => markDone(Array.from(selected))}
-                  >
-                    Oznacz jako zrobione
-                  </button>
+                  <>
+                    <button
+                      className="px-3 inline-flex items-center gap-2"
+                      style={{
+                        height: 32,
+                        borderRadius: 7,
+                        color: "#FFFFFF",
+                        fontSize: 12.5,
+                        fontWeight: 500,
+                        backgroundColor: "transparent",
+                        border: "1px solid rgba(255,255,255,0.3)",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                      onClick={() => setPrintIds(Array.from(selected))}
+                    >
+                      <Printer size={15} />
+                      Drukuj listy ({selectedCount})
+                    </button>
+                    <button
+                      className="px-4 inline-flex items-center gap-2"
+                      disabled={selectedWithSap === 0}
+                      style={{
+                        height: 32,
+                        borderRadius: 7,
+                        backgroundColor: "#4F46E5",
+                        color: "#FFFFFF",
+                        fontSize: 12.5,
+                        fontWeight: 500,
+                        border: "none",
+                        opacity: selectedWithSap === 0 ? 0.4 : 1,
+                        cursor: selectedWithSap === 0 ? "not-allowed" : "pointer",
+                      }}
+                      title={selectedWithSap === 0 ? "Żaden z zaznaczonych wniosków nie ma numeru zlecenia SAP" : undefined}
+                      onMouseEnter={(e) => { if (selectedWithSap > 0) e.currentTarget.style.backgroundColor = "#4338CA"; }}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#4F46E5")}
+                      onClick={() => doneWithSap(Array.from(selected))}
+                    >
+                      <Check size={15} />
+                      Oznacz jako zrobione ({selectedWithSap})
+                    </button>
+                  </>
                 )}
               </div>
             </>
@@ -1545,7 +1726,7 @@ function OrdersView() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Szukaj po ID wniosku, NIP, PESEL…"
+                    placeholder="Szukaj po ID wniosku, NIP, nazwie…"
                     className="w-full outline-none"
                     style={{
                       height: 36,
@@ -1630,7 +1811,8 @@ function OrdersView() {
                   <col style={{ width: 260 }} />
                   <col style={{ width: 70 }} />
                   <col style={{ width: 200 }} />
-                  <col style={{ width: 190 }} />
+                  {tab === "wip" && <col style={{ width: 150 }} />}
+                  <col style={{ width: tab === "wip" ? 150 : 190 }} />
                 </colgroup>
                 <thead>
                   <tr style={{ backgroundColor: "#FAFAFA", borderBottom: "1px solid #EDEDED" }}>
@@ -1651,6 +1833,7 @@ function OrdersView() {
                     <SortableTh label="Typ karty" />
                     <SortableTh label="Szt." align="right" />
                     <SortableTh label="Status" />
+                    {tab === "wip" && <th style={thStyle("left")}>Nr zlecenia SAP</th>}
                     <th style={thStyle("right")}>Akcje</th>
                   </tr>
                 </thead>
@@ -1744,6 +1927,17 @@ function OrdersView() {
                             </span>
                           </div>
                         </td>
+                        {tab === "wip" && (
+                          <td style={{ ...tdStyle("left"), height: 60 }}>
+                            {SAP_ORDER_NO[row.id] ? (
+                              <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 13, color: "#0A0A0A" }}>
+                                {SAP_ORDER_NO[row.id]}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 13, fontWeight: 500, color: "#B45309" }}>{isWithdrawn ? "—" : "Brak"}</span>
+                            )}
+                          </td>
+                        )}
                         <td style={{ ...tdStyle("right"), height: 60 }}>
                           {!isWithdrawn && (
                             <div className="flex items-center justify-end gap-1">
@@ -1752,7 +1946,7 @@ function OrdersView() {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setConfirmPobierz(row.id);
+                                      pobierz([row.id]);
                                     }}
                                     className="inline-flex items-center px-2.5"
                                     style={{
@@ -1795,46 +1989,41 @@ function OrdersView() {
                               {tab === "wip" && (
                                 <>
                                   <button
+                                    disabled={!SAP_ORDER_NO[row.id]}
+                                    title={!SAP_ORDER_NO[row.id] ? "Wymagany numer zlecenia SAP" : undefined}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      markDone([row.id]);
+                                      doneWithSap([row.id]);
                                     }}
                                     className="inline-flex items-center px-2.5"
                                     style={{
                                       height: 30,
                                       borderRadius: 6,
                                       backgroundColor: "transparent",
-                                      color: "#047857",
+                                      color: SAP_ORDER_NO[row.id] ? "#047857" : "#C4C4CC",
                                       fontSize: 12,
                                       fontWeight: 500,
                                       border: "1px solid transparent",
                                       whiteSpace: "nowrap",
+                                      cursor: SAP_ORDER_NO[row.id] ? "pointer" : "not-allowed",
                                     }}
-                                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#ECFDF5")}
+                                    onMouseEnter={(e) => { if (SAP_ORDER_NO[row.id]) e.currentTarget.style.backgroundColor = "#ECFDF5"; }}
                                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                                   >
                                     Zrobione
                                   </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setConfirmWycofaj(row.id);
-                                    }}
-                                    className="inline-flex items-center px-2.5"
-                                    style={{
-                                      height: 30,
-                                      borderRadius: 6,
-                                      backgroundColor: "transparent",
-                                      color: "#71717A",
-                                      fontSize: 12,
-                                      fontWeight: 500,
-                                      border: "1px solid transparent",
-                                    }}
-                                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F3F3F3")}
-                                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                                  >
-                                    Wycofaj
-                                  </button>
+                                  <RowMenu
+                                    open={menuId === row.id}
+                                    onToggle={() => setMenuId((m) => (m === row.id ? null : row.id))}
+                                    onClose={() => setMenuId(null)}
+                                    items={[
+                                      { icon: <Download size={16} />, label: "Pobierz JOB ponownie", meta: `${(jobLog[row.id] ?? []).length}×`, onClick: () => setRedownloadId(row.id) },
+                                      { icon: <Undo2 size={16} />, label: "Cofnij do Nowych", onClick: () => setRevertId(row.id) },
+                                      { icon: <Printer size={16} />, label: "Drukuj list przewodni", onClick: () => setPrintIds([row.id]) },
+                                      "divider",
+                                      { icon: <XCircle size={16} />, label: "Wycofaj", danger: true, onClick: () => setConfirmWycofaj(row.id) },
+                                    ]}
+                                  />
                                 </>
                               )}
                               {tab === "done" && (
@@ -1935,8 +2124,8 @@ function OrdersView() {
                 <div className="flex items-center gap-1">
                   <PageBtn icon={<ChevronLeft size={14} />} disabled />
                   <PageBtn label="1" active />
-                  <PageBtn label="2" />
-                  <PageBtn icon={<ChevronRight size={14} />} />
+                  {rows.length > perPage && <PageBtn label="2" />}
+                  <PageBtn icon={<ChevronRight size={14} />} disabled={rows.length <= perPage} />
                 </div>
               </div>
             </div>
@@ -1950,8 +2139,8 @@ function OrdersView() {
           orderId={drawerOrderId}
           orders={orders}
           onClose={() => setDrawerOrderId(null)}
-          onMarkProduction={(id) => setConfirmPobierz(id)}
-          onMarkDone={(id) => markDone([id])}
+          onMarkProduction={(id) => pobierz([id])}
+          onMarkDone={(id) => doneWithSap([id])}
           onWithdraw={(id) => setConfirmWycofaj(id)}
         />
       )}
@@ -1967,6 +2156,46 @@ function OrdersView() {
           onCancel={() => setConfirmPobierz(null)}
         />
       )}
+
+      {redownloadId && (
+        <RedownloadJobModal
+          orderId={redownloadId}
+          order={orders.find((o) => o.id === redownloadId)!}
+          log={jobLog[redownloadId] ?? []}
+          onCancel={() => setRedownloadId(null)}
+          onConfirm={() => {
+            const id = redownloadId;
+            logJob([id], nowStamp());
+            downloadJobFile([id], orders);
+            setRedownloadId(null);
+            showToast({ message: `Plik JOB dla ${id} pobrano ponownie (bez zmian w danych).`, mono: id });
+          }}
+        />
+      )}
+
+      {revertId && (
+        <RevertToNewModal
+          orderId={revertId}
+          onCancel={() => setRevertId(null)}
+          onConfirm={(reason) => {
+            revertToNew(revertId, reason);
+            setRevertId(null);
+          }}
+        />
+      )}
+
+      {printIds && (
+        <PrintLettersModal
+          orders={orders.filter((o) => printIds.includes(o.id))}
+          onCancel={() => setPrintIds(null)}
+          onConfirm={() => {
+            openLettersPrint(orders.filter((o) => printIds.includes(o.id)));
+            setPrintIds(null);
+          }}
+        />
+      )}
+
+      {toast && <Toast key={toast.key} toast={toast} onClose={() => setToast(null)} />}
 
       {/* Confirmation: Wycofaj */}
       {confirmWycofaj && (
@@ -2832,6 +3061,314 @@ function ConfirmWycofajModal({
         </div>
       </div>
     </div>
+  );
+}
+
+/* ======================== JOB / LISTY PRZEWODNIE ======================== */
+
+type ToastState = {
+  key?: number;
+  message: string;
+  mono?: string;
+  tone?: "ok" | "warn";
+  undoSeconds?: number;
+  onUndo?: () => void;
+};
+
+function Toast({ toast, onClose }: { toast: ToastState; onClose: () => void }) {
+  const [left, setLeft] = useState(toast.undoSeconds ?? 0);
+  useEffect(() => {
+    const total = toast.undoSeconds ? toast.undoSeconds * 1000 : 6000;
+    const t = setTimeout(onClose, total);
+    const i = toast.undoSeconds ? setInterval(() => setLeft((v) => Math.max(0, v - 1)), 1000) : undefined;
+    return () => { clearTimeout(t); if (i) clearInterval(i); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const parts = toast.mono ? toast.message.split(toast.mono) : [toast.message];
+  return (
+    <div
+      role="status"
+      data-testid="toast"
+      className="fixed z-50 flex items-center gap-3"
+      style={{
+        left: "50%", bottom: 28, transform: "translateX(-50%)",
+        backgroundColor: "#0A0A0A", color: "#FFFFFF", borderRadius: 8,
+        padding: toast.onUndo ? "10px 10px 10px 16px" : "10px 16px",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.18)", fontSize: 13.5, maxWidth: "calc(100vw - 32px)",
+      }}
+    >
+      {toast.tone === "warn" ? <AlertTriangle size={16} color="#FBBF24" /> : <Check size={16} color="#34D399" strokeWidth={2.5} />}
+      <span>
+        {parts.map((p, i) => (
+          <span key={i}>
+            {p}
+            {i < parts.length - 1 && (
+              <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontWeight: 500, fontSize: 13 }}>{toast.mono}</span>
+            )}
+          </span>
+        ))}
+      </span>
+      {toast.onUndo && (
+        <>
+          <span style={{ width: 1, height: 20, backgroundColor: "#3F3F46" }} />
+          <button
+            onClick={toast.onUndo}
+            className="inline-flex items-center gap-2"
+            style={{ padding: "6px 10px", borderRadius: 6, background: "none", border: "none", cursor: "pointer", color: "#A5B4FC", fontSize: 12.5, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}
+          >
+            Cofnij
+            <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 11.5, color: "#A1A1AA", fontWeight: 400 }}>{left} s</span>
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+type RowMenuItem = { icon: React.ReactNode; label: string; meta?: string; danger?: boolean; onClick: () => void } | "divider";
+
+function RowMenu({ open, onToggle, onClose, items }: { open: boolean; onToggle: () => void; onClose: () => void; items: RowMenuItem[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("keydown", onKey); };
+  }, [open, onClose]);
+  return (
+    <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        aria-label="Więcej akcji"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="inline-flex items-center justify-center"
+        style={{ width: 30, height: 30, borderRadius: 6, border: "none", cursor: "pointer", backgroundColor: open ? "#F4F4F5" : "transparent" }}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F4F4F5")}
+        onMouseLeave={(e) => { if (!open) e.currentTarget.style.backgroundColor = "transparent"; }}
+      >
+        <Ellipsis size={16} color="#3F3F46" />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 z-30"
+          style={{ top: 34, width: 248, backgroundColor: "#FFFFFF", border: "1px solid #EDEDED", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: 6, textAlign: "left" }}
+        >
+          {items.map((it, i) =>
+            it === "divider" ? (
+              <div key={i} style={{ height: 1, backgroundColor: "#EDEDED", margin: "4px 0" }} />
+            ) : (
+              <button
+                key={i}
+                role="menuitem"
+                onClick={() => { onClose(); it.onClick(); }}
+                className="w-full flex items-center gap-2.5"
+                style={{ padding: "8px 10px", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: it.danger ? "#B91C1C" : "#0A0A0A", fontSize: 13.5 }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F4F4F5")}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+              >
+                <span style={{ color: it.danger ? "#B91C1C" : "#3F3F46", display: "inline-flex" }}>{it.icon}</span>
+                <span style={{ flex: 1, textAlign: "left" }}>{it.label}</span>
+                {it.meta && <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 11.5, color: "#71717A" }}>{it.meta}</span>}
+              </button>
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function cardsLabel(cards: CardEntry[]): string {
+  const n: Record<CardType, string> = { kierowcy: "Kierowcy", warsztatowa: "Warsztatowa", przedsiebiorstwa: "Przedsiębiorstwa", kontrolna: "Kontrolna" };
+  return cards.map((c) => `${c.qty} × ${n[c.type]}`).join(", ");
+}
+const cardsCount = (cards: CardEntry[]) => cards.reduce((s, c) => s + c.qty, 0);
+function kartPl(n: number) { return `${n} ${plWnioski(n, ["karta", "karty", "kart"])}`; }
+
+// PROTOTYP: plik demonstracyjny — prawdziwy format JOB generuje system produkcyjny
+function downloadJobFile(ids: string[], orders: OrderRow[]) {
+  for (const id of ids) {
+    const o = orders.find((x) => x.id === id);
+    if (!o) continue;
+    const body = [
+      "# PROTOTYP SPKE — plik demonstracyjny, nie używać do personalizacji",
+      `WNIOSEK=${id}`,
+      `KARTY=${cardsLabel(o.cards)}`,
+      `WYGENEROWANO=${nowStamp()}`,
+    ].join("\n");
+    const url = URL.createObjectURL(new Blob([body], { type: "text/plain" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `JOB_${id.replace(/\//g, "-")}.job`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
+function openLettersPrint(orders: OrderRow[]) {
+  const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+  const pages = orders
+    .map((o) => {
+      const name = CLIENT_DATA[o.id]?.clientName ?? "—";
+      return `<section class="p">
+        <div class="hdr">LIST PRZEWODNI <span class="tag">wzór tymczasowy — do podmiany na szablon produkcji</span></div>
+        <div class="addr"><b>${esc(name)}</b><br>${esc(SHIP_ADDRESS[o.id] ?? "BRAK ADRESU")}</div>
+        <table><tr><td>Wniosek</td><td class="m">${esc(o.id)}</td></tr>
+        <tr><td>Zawartość koperty</td><td>${esc(cardsLabel(o.cards))} (razem ${cardsCount(o.cards)})</td></tr>
+        <tr><td>Nr zlecenia SAP</td><td class="m">${esc(SAP_ORDER_NO[o.id] ?? "—")}</td></tr></table>
+      </section>`;
+    })
+    .join("");
+  const w = window.open("", "_blank");
+  if (!w) { alert("Przeglądarka zablokowała okno wydruku. Zezwól na wyskakujące okna dla tej strony."); return; }
+  w.document.write(`<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>Listy przewodnie (${orders.length})</title>
+  <style>@page{size:A4;margin:20mm}body{font-family:Inter,Arial,sans-serif;color:#0A0A0A;margin:0}
+  .p{page-break-after:always;padding:8mm 0}.p:last-child{page-break-after:auto}
+  .hdr{font-size:13px;letter-spacing:.08em;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:8px}
+  .tag{font-weight:400;letter-spacing:0;color:#B45309;font-size:11px;margin-left:8px}
+  .addr{margin:28mm 0 18mm 90mm;font-size:15px;line-height:1.5}
+  table{border-collapse:collapse;font-size:13px}td{padding:6px 16px 6px 0}.m{font-family:"JetBrains Mono",monospace}
+  </style></head><body>${pages}<script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+
+function ModalShell({ width = 440, onCancel, children, footer }: { width?: number; onCancel: () => void; children: React.ReactNode; footer: React.ReactNode }) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+  return (
+    <div
+      ref={overlayRef}
+      onClick={(e) => { if (e.target === overlayRef.current) onCancel(); }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: "rgba(17, 24, 39, 0.45)", padding: 16 }}
+    >
+      <div role="dialog" aria-modal="true" style={{ width, maxWidth: "100%", backgroundColor: "#FFFFFF", borderRadius: 12, boxShadow: "0 20px 40px rgba(16,24,40,0.18)", border: "1px solid #EDEDED" }}>
+        <div style={{ padding: "24px 24px 20px" }}>{children}</div>
+        <div className="flex items-center justify-center gap-3" style={{ padding: "16px 24px", borderTop: "1px solid #EDEDED" }}>{footer}</div>
+      </div>
+    </div>
+  );
+}
+
+function ModalHead({ icon, tint, title, children }: { icon: React.ReactNode; tint: string; title: string; children: React.ReactNode }) {
+  return (
+    <>
+      <div className="flex items-center justify-center" style={{ width: 44, height: 44, borderRadius: "50%", backgroundColor: tint, margin: "0 auto 16px" }}>{icon}</div>
+      <h3 style={{ fontSize: 17, fontWeight: 600, color: "#0A0A0A", margin: "0 0 8px", textAlign: "center" }}>{title}</h3>
+      <p style={{ fontSize: 14, color: "#71717A", margin: "0 0 16px", textAlign: "center", lineHeight: 1.5 }}>{children}</p>
+    </>
+  );
+}
+
+const MONO: React.CSSProperties = { fontFamily: '"JetBrains Mono", ui-monospace, monospace', color: "#0A0A0A", fontWeight: 500 };
+
+function CancelBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="px-5" style={{ height: 38, borderRadius: 6, border: "1px solid #D1D5DB", backgroundColor: "#FFFFFF", color: "#3F3F46", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>
+      Anuluj
+    </button>
+  );
+}
+
+function PrimaryBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="px-5 inline-flex items-center gap-2"
+      style={{ height: 38, borderRadius: 6, backgroundColor: "#4F46E5", color: "#FFFFFF", fontSize: 14, fontWeight: 500, border: "1px solid #4F46E5", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.4 : 1 }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function RedownloadJobModal({ orderId, order, log, onConfirm, onCancel }: { orderId: string; order: OrderRow; log: { at: string; by: string }[]; onConfirm: () => void; onCancel: () => void }) {
+  const first = log[0];
+  return (
+    <ModalShell onCancel={onCancel} footer={<><CancelBtn onClick={onCancel} /><PrimaryBtn onClick={onConfirm}><Download size={15} />Pobierz JOB</PrimaryBtn></>}>
+      <ModalHead icon={<Download size={22} color="#4F46E5" />} tint="#EEF2FF" title="Pobierz JOB ponownie">
+        Plik JOB dla wniosku <span style={MONO}>{orderId}</span> zostanie wygenerowany ponownie z tymi samymi numerami kart i datami ważności. Status wniosku się nie zmieni.
+      </ModalHead>
+      <div style={{ backgroundColor: "#FAFAFA", border: "1px solid #EDEDED", borderRadius: 8, padding: "12px 14px", display: "grid", gap: 8, fontSize: 13 }}>
+        {[
+          ["Pierwsze pobranie", first ? `${first.at.replace(",", "")} · ${first.by}` : "—"],
+          ["Liczba pobrań", String(log.length)],
+          ["Karty w pliku", cardsLabel(order.cards)],
+        ].map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-4">
+            <span style={{ color: "#71717A" }}>{k}</span>
+            <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 12.5, textAlign: "right" }}>{v}</span>
+          </div>
+        ))}
+      </div>
+      <p style={{ fontSize: 12.5, color: "#71717A", margin: "10px 0 0" }}>Potrzebujesz nowych dat ważności? Użyj „Cofnij do Nowych”.</p>
+    </ModalShell>
+  );
+}
+
+function RevertToNewModal({ orderId, onConfirm, onCancel }: { orderId: string; onConfirm: (reason: string) => void; onCancel: () => void }) {
+  const [reason, setReason] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const ok = reason.trim().length > 0 && confirmed;
+  return (
+    <ModalShell onCancel={onCancel} footer={<><CancelBtn onClick={onCancel} /><PrimaryBtn disabled={!ok} onClick={() => ok && onConfirm(reason.trim())}><Undo2 size={15} />Cofnij do Nowych</PrimaryBtn></>}>
+      <ModalHead icon={<Undo2 size={22} color="#B45309" />} tint="#FFFBEB" title="Cofnij wniosek do Nowych">
+        Wniosek <span style={MONO}>{orderId}</span> wróci do zakładki Nowe. Pobrany wcześniej plik JOB stanie się nieaktualny — nie używaj go do personalizacji. Po ponownym pobraniu powstanie nowy plik z aktualnymi datami ważności.
+      </ModalHead>
+      <label style={{ fontSize: 13, fontWeight: 500, color: "#3F3F46", display: "block", marginBottom: 6 }}>Powód cofnięcia *</label>
+      <textarea
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Np. wnioskodawca poprosił o wstrzymanie produkcji o 2 tygodnie…"
+        className="w-full outline-none resize-none"
+        rows={3}
+        style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #D1D5DB", fontSize: 14, fontFamily: "inherit" }}
+      />
+      <label className="flex items-start gap-2.5" style={{ marginTop: 10, fontSize: 13, color: "#3F3F46", cursor: "pointer" }}>
+        <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} style={{ marginTop: 2, accentColor: "#4F46E5" }} />
+        Potwierdzam, że karty z tego wniosku nie zostały spersonalizowane.
+      </label>
+      <p style={{ fontSize: 12.5, color: "#71717A", margin: "6px 0 0" }}>Karty już spersonalizowane? Nie cofaj wniosku — zgłoś sprawę przełożonemu.</p>
+    </ModalShell>
+  );
+}
+
+function PrintLettersModal({ orders, onConfirm, onCancel }: { orders: OrderRow[]; onConfirm: () => void; onCancel: () => void }) {
+  const totalCards = orders.reduce((s, o) => s + cardsCount(o.cards), 0);
+  return (
+    <ModalShell width={500} onCancel={onCancel} footer={<><CancelBtn onClick={onCancel} /><PrimaryBtn onClick={onConfirm}><Printer size={15} />Generuj PDF ({orders.length} str.)</PrimaryBtn></>}>
+      <ModalHead icon={<Printer size={22} color="#4F46E5" />} tint="#EEF2FF" title={orders.length === 1 ? "Drukuj list przewodni" : "Drukuj listy przewodnie"}>
+        Dla każdego wniosku drukowany jest jeden list. Wszystkie karty z wniosku trafiają do jednej koperty pod adres z wniosku.
+      </ModalHead>
+      <div style={{ display: "grid", gap: 8, maxHeight: 320, overflowY: "auto" }}>
+        {orders.map((o) => (
+          <div key={o.id} style={{ backgroundColor: "#FAFAFA", border: "1px solid #EDEDED", borderRadius: 8, padding: "12px 14px" }}>
+            <div className="flex justify-between" style={{ marginBottom: 4 }}>
+              <span style={{ ...MONO, fontSize: 12.5 }}>{o.id}</span>
+              <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 12, color: "#4F46E5" }}>{kartPl(cardsCount(o.cards))}</span>
+            </div>
+            <div style={{ fontSize: 13.5, fontWeight: 600 }}>{CLIENT_DATA[o.id]?.clientName ?? "—"}</div>
+            <div style={{ fontSize: 13, color: SHIP_ADDRESS[o.id] ? "#3F3F46" : "#B45309" }}>{SHIP_ADDRESS[o.id] ?? "Brak adresu wysyłki we wniosku"}</div>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between" style={{ marginTop: 10, fontSize: 13 }}>
+        <span style={{ color: "#71717A" }}>Razem</span>
+        <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontWeight: 500, fontSize: 12.5 }}>
+          {orders.length} {plWnioski(orders.length, ["list", "listy", "listów"])} · {kartPl(totalCards)}
+        </span>
+      </div>
+    </ModalShell>
   );
 }
 
