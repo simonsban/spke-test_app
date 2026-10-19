@@ -107,7 +107,7 @@ const NIP_FULL: Record<string, string> = {
   "WN/2026/045650": "583-456-78-90",
 };
 
-// Adres wysyłki z wniosku — ZAŁOŻENIE: dostępny w danych wniosku (dziś przychodzi w Excelu)
+// Adres wysyłki — z wniosku Info-Car (wnioskodawca wpisuje adres wysyłki); mock do czasu integracji
 const SHIP_ADDRESS: Record<string, string> = {
   "WN/2026/045687": "ul. Kwiatowa 5/2, 05-800 Pruszków",
   "WN/2026/045686": "ul. Logistyczna 8, 05-090 Raszyn",
