@@ -1492,7 +1492,6 @@ function OrdersView() {
   const selectedCount = selected.size;
   const selectedWithSap = Array.from(selected).filter((id) => SAP_ORDER_NO[id]).length;
   const selectedNoSap = selectedCount - selectedWithSap;
-  const selectedCards = Array.from(selected).reduce((sum, id) => { const r = orders.find((o) => o.id === id); return sum + (r ? cardsCount(r.cards) : 0); }, 0);
 
   const toggleRow = (id: string) => {
     setSelected((prev) => {
@@ -1688,7 +1687,7 @@ function OrdersView() {
                       onClick={() => setPrintIds(Array.from(selected))}
                     >
                       <Printer size={15} />
-                      Drukuj listy ({selectedCards})
+                      Drukuj listy ({selectedCount})
                     </button>
                     <button
                       className="px-4 inline-flex items-center gap-2"
@@ -2021,7 +2020,7 @@ function OrdersView() {
                                     items={[
                                       { icon: <Download size={16} />, label: "Pobierz JOB ponownie", meta: `${(jobLog[row.id] ?? []).length}×`, onClick: () => setRedownloadId(row.id) },
                                       { icon: <Undo2 size={16} />, label: "Cofnij do Nowych", onClick: () => setRevertId(row.id) },
-                                      { icon: <Printer size={16} />, label: cardsCount(row.cards) === 1 ? "Drukuj list przewodni" : "Drukuj listy przewodnie", meta: String(cardsCount(row.cards)), onClick: () => setPrintIds([row.id]) },
+                                      { icon: <Printer size={16} />, label: "Drukuj list przewodni", onClick: () => setPrintIds([row.id]) },
                                       "divider",
                                       { icon: <XCircle size={16} />, label: "Wycofaj", danger: true, onClick: () => setConfirmWycofaj(row.id) },
                                     ]}
@@ -3213,32 +3212,36 @@ function downloadJobFile(ids: string[], orders: OrderRow[]) {
 }
 
 function openLettersPrint(orders: OrderRow[]) {
-  // Układ wg szablonu produkcji „karty_szkoleniowe_list_przewodni.docx”: 1 list na kartę, adres wersalikami po prawej
+  // Układ wg szablonu produkcji „karty_szkoleniowe_list_przewodni.docx”, wariant: 1 list na wniosek + zawartość przesyłki
   const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
-  const pages: string[] = [];
-  for (const o of orders) {
+  const typ: Record<CardType, string> = { kierowcy: "Karta kierowcy", warsztatowa: "Karta warsztatowa", przedsiebiorstwa: "Karta przedsiębiorstwa", kontrolna: "Karta kontrolna" };
+  const pages = orders.map((o) => {
     const name = (CLIENT_DATA[o.id]?.clientName ?? "—").toUpperCase();
-    const addr = SHIP_ADDRESS[o.id] ?? "BRAK ADRESU";
-    const [street, city] = addr.split(/,\s*/);
+    const [street, city] = (SHIP_ADDRESS[o.id] ?? "BRAK ADRESU").split(/,\s*/);
     const n = cardsCount(o.cards);
-    for (let i = 1; i <= n; i++) {
-      pages.push(`<section class="p">
-        <div class="addr"><b>${esc(name)}</b><br><b>${esc((street ?? "").toUpperCase())}</b><br><i>${esc((city ?? "").toUpperCase())}</i></div>
-        <p class="salut">Szanowni Państwo</p>
-        <p class="body">Dziękujemy za zamówienie produktu PWPW S.A karty szkoleniowej do tachografu.</p>
-        <p class="body">Informujemy, że w razie jakichkolwiek pytań, uwag czy wątpliwości związanych z produktem - prosimy o kontakt z udostępnioną w PWPW S.A. dla Państwa infolinią pod nr 22&nbsp;332 92 90 w godzinach 7-16.</p>
-        <div class="foot">${esc(o.id)} · list ${i}/${n}</div>
-      </section>`);
-    }
-  }
+    const lead = n === 1
+      ? "Dziękujemy za zamówienie produktu PWPW S.A. – karty szkoleniowej do tachografu. W przesyłce znajduje się:"
+      : "Dziękujemy za zamówienie produktu PWPW S.A. – kart szkoleniowych do tachografu. W przesyłce znajdują się:";
+    const rows = o.cards.map((c) => `<tr><td>${typ[c.type]}</td><td>${esc(kartPl(c.qty))}</td></tr>`).join("");
+    const total = o.cards.length > 1 ? `<tr class="h"><td>Razem w przesyłce</td><td>${esc(kartPl(n))}</td></tr>` : "";
+    return `<section class="p">
+      <div class="mark">F</div>
+      <div class="addr"><b>${esc(name)}</b><br><b>${esc((street ?? "").toUpperCase())}</b><br><b>${esc((city ?? "").toUpperCase())}</b></div>
+      <p class="salut">Szanowni Państwo</p>
+      <p class="body">${lead}</p>
+      <table><tr class="h"><td>Numer wniosku</td><td>${esc(o.id)}</td></tr>${rows}${total}</table>
+      <p class="body">Informujemy, że w razie jakichkolwiek pytań, uwag czy wątpliwości związanych z produktem - prosimy o kontakt z udostępnioną w PWPW S.A. dla Państwa infolinią pod nr 22&nbsp;332 92 90 w godzinach 7-16.</p>
+    </section>`;
+  });
   const w = window.open("", "_blank");
   if (!w) { alert("Przeglądarka zablokowała okno wydruku. Zezwól na wyskakujące okna dla tej strony."); return; }
   w.document.write(`<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>Listy przewodnie (${pages.length})</title>
   <style>@page{size:A4;margin:25mm}body{font-family:Calibri,Carlito,Arial,sans-serif;font-size:11pt;color:#000;margin:0}
-  .p{page-break-after:always;position:relative;min-height:240mm}.p:last-child{page-break-after:auto}
-  .addr{margin:30mm 0 22mm 100mm;line-height:1.6}
-  .salut{font-style:italic;margin:0 0 6mm}.body{text-align:justify;line-height:1.5;margin:0 0 4mm}
-  .foot{position:absolute;bottom:0;left:0;font-size:8pt;color:#888}
+  .p{page-break-after:always}.p:last-child{page-break-after:auto}
+  .mark{margin:20mm 0 2mm 100mm;font-size:22pt;font-weight:700}
+  .addr{margin:0 0 22mm 100mm;line-height:1.6}
+  .salut{font-style:italic;margin:0 0 14mm}.body{text-align:justify;line-height:1.5;margin:0 0 3mm}
+  table{border-collapse:collapse;width:120mm;margin:0 0 6mm;font-size:10.5pt}td{border:1px solid #BFBFBF;padding:1mm 2mm}tr.h td{background:#F2F2F2;font-weight:700}
   </style></head><body>${pages.join("")}<script>window.onload=()=>window.print()<\/script></body></html>`);
   w.document.close();
 }
@@ -3353,16 +3356,16 @@ function PrintLettersModal({ orders, onConfirm, onCancel }: { orders: OrderRow[]
   const totalCards = orders.reduce((s, o) => s + cardsCount(o.cards), 0);
   const listy = (n: number) => `${n} ${plWnioski(n, ["list", "listy", "listów"])}`;
   return (
-    <ModalShell width={500} onCancel={onCancel} footer={<><CancelBtn onClick={onCancel} /><PrimaryBtn onClick={onConfirm}><Printer size={15} />Generuj PDF ({totalCards} str.)</PrimaryBtn></>}>
-      <ModalHead icon={<Printer size={22} color="#4F46E5" />} tint="#EEF2FF" title={totalCards === 1 ? "Drukuj list przewodni" : "Drukuj listy przewodnie"}>
-        Do każdej karty drukowany jest osobny list przewodni. Listy z jednego wniosku idą pod adres wysyłki z wniosku.
+    <ModalShell width={500} onCancel={onCancel} footer={<><CancelBtn onClick={onCancel} /><PrimaryBtn onClick={onConfirm}><Printer size={15} />Generuj PDF ({orders.length} str.)</PrimaryBtn></>}>
+      <ModalHead icon={<Printer size={22} color="#4F46E5" />} tint="#EEF2FF" title={orders.length === 1 ? "Drukuj list przewodni" : "Drukuj listy przewodnie"}>
+        Dla każdego wniosku drukowany jest jeden list przewodni z wykazem zawartości przesyłki. Wszystkie karty z wniosku idą razem pod adres wysyłki z wniosku.
       </ModalHead>
       <div style={{ display: "grid", gap: 8, maxHeight: 320, overflowY: "auto" }}>
         {orders.map((o) => (
           <div key={o.id} style={{ backgroundColor: "#FAFAFA", border: "1px solid #EDEDED", borderRadius: 8, padding: "12px 14px" }}>
             <div className="flex justify-between" style={{ marginBottom: 4 }}>
               <span style={{ ...MONO, fontSize: 12.5 }}>{o.id}</span>
-              <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 12, color: "#4F46E5" }}>{listy(cardsCount(o.cards))}</span>
+              <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 12, color: "#4F46E5" }}>{kartPl(cardsCount(o.cards))}</span>
             </div>
             <div style={{ fontSize: 13.5, fontWeight: 600 }}>{CLIENT_DATA[o.id]?.clientName ?? "—"}</div>
             <div style={{ fontSize: 13, color: SHIP_ADDRESS[o.id] ? "#3F3F46" : "#B45309" }}>{SHIP_ADDRESS[o.id] ?? "Brak adresu wysyłki we wniosku"}</div>
@@ -3372,7 +3375,7 @@ function PrintLettersModal({ orders, onConfirm, onCancel }: { orders: OrderRow[]
       <div className="flex justify-between" style={{ marginTop: 10, fontSize: 13 }}>
         <span style={{ color: "#71717A" }}>Razem</span>
         <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontWeight: 500, fontSize: 12.5 }}>
-          {listy(totalCards)} · {orders.length} {plWnioski(orders.length, ["wniosek", "wnioski", "wniosków"])}
+          {listy(orders.length)} · {kartPl(totalCards)}
         </span>
       </div>
     </ModalShell>
