@@ -1492,6 +1492,7 @@ function OrdersView() {
   const selectedCount = selected.size;
   const selectedWithSap = Array.from(selected).filter((id) => SAP_ORDER_NO[id]).length;
   const selectedNoSap = selectedCount - selectedWithSap;
+  const selectedCards = Array.from(selected).reduce((sum, id) => { const r = orders.find((o) => o.id === id); return sum + (r ? cardsCount(r.cards) : 0); }, 0);
 
   const toggleRow = (id: string) => {
     setSelected((prev) => {
@@ -1687,7 +1688,7 @@ function OrdersView() {
                       onClick={() => setPrintIds(Array.from(selected))}
                     >
                       <Printer size={15} />
-                      Drukuj listy ({selectedCount})
+                      Drukuj listy ({selectedCards})
                     </button>
                     <button
                       className="px-4 inline-flex items-center gap-2"
@@ -2020,7 +2021,7 @@ function OrdersView() {
                                     items={[
                                       { icon: <Download size={16} />, label: "Pobierz JOB ponownie", meta: `${(jobLog[row.id] ?? []).length}×`, onClick: () => setRedownloadId(row.id) },
                                       { icon: <Undo2 size={16} />, label: "Cofnij do Nowych", onClick: () => setRevertId(row.id) },
-                                      { icon: <Printer size={16} />, label: "Drukuj list przewodni", onClick: () => setPrintIds([row.id]) },
+                                      { icon: <Printer size={16} />, label: cardsCount(row.cards) === 1 ? "Drukuj list przewodni" : "Drukuj listy przewodnie", meta: String(cardsCount(row.cards)), onClick: () => setPrintIds([row.id]) },
                                       "divider",
                                       { icon: <XCircle size={16} />, label: "Wycofaj", danger: true, onClick: () => setConfirmWycofaj(row.id) },
                                     ]}
@@ -3212,29 +3213,33 @@ function downloadJobFile(ids: string[], orders: OrderRow[]) {
 }
 
 function openLettersPrint(orders: OrderRow[]) {
+  // Układ wg szablonu produkcji „karty_szkoleniowe_list_przewodni.docx”: 1 list na kartę, adres wersalikami po prawej
   const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
-  const pages = orders
-    .map((o) => {
-      const name = CLIENT_DATA[o.id]?.clientName ?? "—";
-      return `<section class="p">
-        <div class="hdr">LIST PRZEWODNI <span class="tag">wzór tymczasowy — do podmiany na szablon produkcji</span></div>
-        <div class="addr"><b>${esc(name)}</b><br>${esc(SHIP_ADDRESS[o.id] ?? "BRAK ADRESU")}</div>
-        <table><tr><td>Wniosek</td><td class="m">${esc(o.id)}</td></tr>
-        <tr><td>Zawartość koperty</td><td>${esc(cardsLabel(o.cards))} (razem ${cardsCount(o.cards)})</td></tr>
-        <tr><td>Nr zlecenia SAP</td><td class="m">${esc(SAP_ORDER_NO[o.id] ?? "—")}</td></tr></table>
-      </section>`;
-    })
-    .join("");
+  const pages: string[] = [];
+  for (const o of orders) {
+    const name = (CLIENT_DATA[o.id]?.clientName ?? "—").toUpperCase();
+    const addr = SHIP_ADDRESS[o.id] ?? "BRAK ADRESU";
+    const [street, city] = addr.split(/,\s*/);
+    const n = cardsCount(o.cards);
+    for (let i = 1; i <= n; i++) {
+      pages.push(`<section class="p">
+        <div class="addr"><b>${esc(name)}</b><br><b>${esc((street ?? "").toUpperCase())}</b><br><i>${esc((city ?? "").toUpperCase())}</i></div>
+        <p class="salut">Szanowni Państwo</p>
+        <p class="body">Dziękujemy za zamówienie produktu PWPW S.A karty szkoleniowej do tachografu.</p>
+        <p class="body">Informujemy, że w razie jakichkolwiek pytań, uwag czy wątpliwości związanych z produktem - prosimy o kontakt z udostępnioną w PWPW S.A. dla Państwa infolinią pod nr 22&nbsp;332 92 90 w godzinach 7-16.</p>
+        <div class="foot">${esc(o.id)} · list ${i}/${n}</div>
+      </section>`);
+    }
+  }
   const w = window.open("", "_blank");
   if (!w) { alert("Przeglądarka zablokowała okno wydruku. Zezwól na wyskakujące okna dla tej strony."); return; }
-  w.document.write(`<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>Listy przewodnie (${orders.length})</title>
-  <style>@page{size:A4;margin:20mm}body{font-family:Inter,Arial,sans-serif;color:#0A0A0A;margin:0}
-  .p{page-break-after:always;padding:8mm 0}.p:last-child{page-break-after:auto}
-  .hdr{font-size:13px;letter-spacing:.08em;font-weight:600;border-bottom:1px solid #ddd;padding-bottom:8px}
-  .tag{font-weight:400;letter-spacing:0;color:#B45309;font-size:11px;margin-left:8px}
-  .addr{margin:28mm 0 18mm 90mm;font-size:15px;line-height:1.5}
-  table{border-collapse:collapse;font-size:13px}td{padding:6px 16px 6px 0}.m{font-family:"JetBrains Mono",monospace}
-  </style></head><body>${pages}<script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.write(`<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>Listy przewodnie (${pages.length})</title>
+  <style>@page{size:A4;margin:25mm}body{font-family:Calibri,Carlito,Arial,sans-serif;font-size:11pt;color:#000;margin:0}
+  .p{page-break-after:always;position:relative;min-height:240mm}.p:last-child{page-break-after:auto}
+  .addr{margin:30mm 0 22mm 100mm;line-height:1.6}
+  .salut{font-style:italic;margin:0 0 6mm}.body{text-align:justify;line-height:1.5;margin:0 0 4mm}
+  .foot{position:absolute;bottom:0;left:0;font-size:8pt;color:#888}
+  </style></head><body>${pages.join("")}<script>window.onload=()=>window.print()<\/script></body></html>`);
   w.document.close();
 }
 
@@ -3346,17 +3351,18 @@ function RevertToNewModal({ orderId, onConfirm, onCancel }: { orderId: string; o
 
 function PrintLettersModal({ orders, onConfirm, onCancel }: { orders: OrderRow[]; onConfirm: () => void; onCancel: () => void }) {
   const totalCards = orders.reduce((s, o) => s + cardsCount(o.cards), 0);
+  const listy = (n: number) => `${n} ${plWnioski(n, ["list", "listy", "listów"])}`;
   return (
-    <ModalShell width={500} onCancel={onCancel} footer={<><CancelBtn onClick={onCancel} /><PrimaryBtn onClick={onConfirm}><Printer size={15} />Generuj PDF ({orders.length} str.)</PrimaryBtn></>}>
-      <ModalHead icon={<Printer size={22} color="#4F46E5" />} tint="#EEF2FF" title={orders.length === 1 ? "Drukuj list przewodni" : "Drukuj listy przewodnie"}>
-        Dla każdego wniosku drukowany jest jeden list. Wszystkie karty z wniosku trafiają do jednej koperty pod adres z wniosku.
+    <ModalShell width={500} onCancel={onCancel} footer={<><CancelBtn onClick={onCancel} /><PrimaryBtn onClick={onConfirm}><Printer size={15} />Generuj PDF ({totalCards} str.)</PrimaryBtn></>}>
+      <ModalHead icon={<Printer size={22} color="#4F46E5" />} tint="#EEF2FF" title={totalCards === 1 ? "Drukuj list przewodni" : "Drukuj listy przewodnie"}>
+        Do każdej karty drukowany jest osobny list przewodni. Listy z jednego wniosku idą pod adres wysyłki z wniosku.
       </ModalHead>
       <div style={{ display: "grid", gap: 8, maxHeight: 320, overflowY: "auto" }}>
         {orders.map((o) => (
           <div key={o.id} style={{ backgroundColor: "#FAFAFA", border: "1px solid #EDEDED", borderRadius: 8, padding: "12px 14px" }}>
             <div className="flex justify-between" style={{ marginBottom: 4 }}>
               <span style={{ ...MONO, fontSize: 12.5 }}>{o.id}</span>
-              <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 12, color: "#4F46E5" }}>{kartPl(cardsCount(o.cards))}</span>
+              <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 12, color: "#4F46E5" }}>{listy(cardsCount(o.cards))}</span>
             </div>
             <div style={{ fontSize: 13.5, fontWeight: 600 }}>{CLIENT_DATA[o.id]?.clientName ?? "—"}</div>
             <div style={{ fontSize: 13, color: SHIP_ADDRESS[o.id] ? "#3F3F46" : "#B45309" }}>{SHIP_ADDRESS[o.id] ?? "Brak adresu wysyłki we wniosku"}</div>
@@ -3366,7 +3372,7 @@ function PrintLettersModal({ orders, onConfirm, onCancel }: { orders: OrderRow[]
       <div className="flex justify-between" style={{ marginTop: 10, fontSize: 13 }}>
         <span style={{ color: "#71717A" }}>Razem</span>
         <span style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontWeight: 500, fontSize: 12.5 }}>
-          {orders.length} {plWnioski(orders.length, ["list", "listy", "listów"])} · {kartPl(totalCards)}
+          {listy(totalCards)} · {orders.length} {plWnioski(orders.length, ["wniosek", "wnioski", "wniosków"])}
         </span>
       </div>
     </ModalShell>
